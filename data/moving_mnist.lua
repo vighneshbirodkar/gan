@@ -9,8 +9,10 @@ local path_testset = paths.concat(path_dataset, 'test_32x32.t7')
 th.manualSeed(0)
 
 
-function getImage(image)
-   return {input=((image:float() - 128)/255)}
+function getImage(img)
+   img = img:double()
+   local out = image.scale(img, opt.imageSize, opt.imageSize)
+   return {input=((out:float() - 128)/255)}
 end
 
 
@@ -27,16 +29,11 @@ function movingMNISTData(dataset)
    else
       data = th.load(path_testset, 'ascii')
    end
+
    local listDataset = tnt.ListDataset(data.data:long(), getImage)
-   local batchDataset = tnt.BatchDataset{dataset=listDataset, batchsize=128,
+   local batchDataset = tnt.BatchDataset{dataset=listDataset, batchsize=opt.batchSize,
 					 perm=random_idx}
    local iter = tnt.DatasetIterator{dataset=batchDataset}
    return iter
 end
 
-trainData = movingMNISTData('train')
-
---print(trainData:get(1))
-for batch in trainData:run() do
-   print(batch)
-end
