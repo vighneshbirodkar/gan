@@ -12,7 +12,7 @@ th.manualSeed(0)
 function getImage(img)
    img = img:double()
    local out = image.scale(img, opt.imageSize, opt.imageSize)
-   return {input=((out:float() - 128)/255)}
+   return {input=((out:float() - 0)/255)}
 end
 
 

@@ -60,6 +60,12 @@ local label_fake = 0
 local noise = torch.CudaTensor(opt.batchSize, opt.noiseDim, 1, 1)
 local currentBatch = nil
 
+
+local timer = tnt.TimeMeter({unit=true})
+local gErrorMeter = tnt.MovingAverageValueMeter({windowsize=1})
+local dErrorMeter = tnt.MovingAverageValueMeter({windowsize=1})
+
+
 optimStateD = {learningRate = opt.lrD, beta1=opt.beta1, weightDecay=opt.weightDecay}
 optimStateG = {learningRate = opt.lrG, beta1=opt.beta1, weightDecay=opt.weightDecay}
 
@@ -75,7 +81,6 @@ local fDx = function(_)
    local gradReal = criterion:backward(output_D, target)
    netD:backward(inputImg, gradReal)
 
-
    --Train Disc. on generated images
    sampleNoise(noise)
    target:fill(label_fake)
@@ -88,6 +93,8 @@ local fDx = function(_)
    netD:backward(genImage, gradFake)
 
    local errD = errD_real + errD_fake
+   dErrorMeter:add(errD)
+
    return errD, grads_D
 end
 
@@ -104,16 +111,18 @@ local fGx = function(_)
 
    netG:backward(noise, grad_D)
 
+   gErrorMeter:add(errG)
    return errG, grads_G
 end
 
 local trainData, trainSize = movingMNISTData('train')
-local timer = tnt.TimeMeter({unit=true})
 --local trainSize = trainData:size()
 
 for epoch=1,opt.nEpochs do
    local seenSamples = 0
    timer:reset()
+   gErrorMeter:reset()
+   dErrorMeter:reset()
 
    local numBatches = 0
    for batch in trainData:run() do
@@ -126,8 +135,9 @@ for epoch=1,opt.nEpochs do
 
       timer:incUnit()
       if (numBatches%opt.printEvery) == 0 then
-	 print(('%d/%d samples %f secs/batch'):
-	       format(samples, trainSize, timer:value()))
+	 print(('%d/%d samples %f secs/batch G-Err-Prob=%f D-Err-Prob=%f'):
+	       format(samples, trainSize, timer:value(), gErrorMeter:value(),
+		      dErrorMeter:value()))
       end
       if (numBatches%opt.dispEvery) == 0 then
 	 sampleNoise(noise, opt.seed)
@@ -137,3 +147,4 @@ for epoch=1,opt.nEpochs do
       end
    end
 end
+ 
