@@ -34,6 +34,6 @@ function movingMNISTData(dataset)
    local batchDataset = tnt.BatchDataset{dataset=listDataset, batchsize=opt.batchSize,
 					 perm=random_idx}
    local iter = tnt.DatasetIterator{dataset=batchDataset}
-   return iter
+   return iter, listDataset:size()
 end
 

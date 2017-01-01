@@ -27,6 +27,8 @@ opt = lapp[[
   --dataPool         (default 200)
   --dataWarmup       (default 10)
   --nThreads         (default 1)                 number of dataloading threads
+  --printEvery       (default 10)                How often to print stats.
+  --dispEvery        (default 50)                How often to display generated images.
 ]]  
 
 optSetup()
@@ -62,7 +64,7 @@ optimStateD = {learningRate = opt.lrD, beta1=opt.beta1, weightDecay=opt.weightDe
 optimStateG = {learningRate = opt.lrG, beta1=opt.beta1, weightDecay=opt.weightDecay}
 
 
-local fDx = function(x)
+local fDx = function(_)
    grads_D:zero()
 
    -- Train Disc. on real images
@@ -73,17 +75,65 @@ local fDx = function(x)
    local gradReal = criterion:backward(output_D, target)
    netD:backward(inputImg, gradReal)
 
+
    --Train Disc. on generated images
    sampleNoise(noise)
-   local genImage = netG:forward(noise)
+   target:fill(label_fake)
 
+   local genImage = netG:forward(noise)
+   
    local output_D = netD:forward(genImage)
+   local errD_fake = criterion:forward(output_D, target)
+   local gradFake = criterion:backward(output_D, target)
+   netD:backward(genImage, gradFake)
+
+   local errD = errD_real + errD_fake
+   return errD, grads_D
 end
 
-trainData = movingMNISTData('train')
 
+local fGx = function(_)
+   grads_G:zero()
 
-for batch in trainData:run() do
-   currentBatch = batch
-   opt.optimizer(fDx, params_D, optimStateD)
+   target:fill(label_real)
+
+   local output = netD.output
+   local errG = criterion:forward(output, target)
+   local grad_C = criterion:backward(output, target)
+   local grad_D = netD:updateGradInput(inputImg, grad_C)
+
+   netG:backward(noise, grad_D)
+
+   return errG, grads_G
+end
+
+local trainData, trainSize = movingMNISTData('train')
+local timer = tnt.TimeMeter({unit=true})
+--local trainSize = trainData:size()
+
+for epoch=1,opt.nEpochs do
+   local seenSamples = 0
+   timer:reset()
+
+   local numBatches = 0
+   for batch in trainData:run() do
+      currentBatch = batch
+      numBatches = numBatches + 1
+      local samples = numBatches*opt.batchSize
+
+      opt.optimizer(fDx, params_D, optimStateD)
+      opt.optimizer(fGx, params_G, optimStateG)
+
+      timer:incUnit()
+      if (numBatches%opt.printEvery) == 0 then
+	 print(('%d/%d samples %f secs/batch'):
+	       format(samples, trainSize, timer:value()))
+      end
+      if (numBatches%opt.dispEvery) == 0 then
+	 sampleNoise(noise, opt.seed)
+	 local name = ('Epoch_%03d-Step_%05d'):format(epoch, numBatches)
+	 print(('Saving image %s'):format(name))
+	 saveGen(netG, noise, name)
+      end
+   end
 end
