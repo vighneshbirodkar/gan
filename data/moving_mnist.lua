@@ -6,7 +6,7 @@ tnt = require 'torchnet'
 local path_dataset = '/scratch/vnb222/data/moving_mnist/mnist.t7/'
 local path_trainset = paths.concat(path_dataset, 'train_32x32.t7')
 local path_testset = paths.concat(path_dataset, 'test_32x32.t7')
-th.manualSeed(0)
+th.manualSeed(opt.seed)
 
 
 function getImage(img)

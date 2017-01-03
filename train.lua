@@ -20,7 +20,7 @@ opt = lapp[[
   --nEpochs          (default 100)               max training epochs  
   --seed             (default 1)                 random seed  
   --epochSize        (default 20000)             number of samples per epoch  
-  --noiseDim         (default 100)               dimensionality of noise space
+  --noiseDim         (default 50)               dimensionality of noise space
   --imageSize        (default 64)                size of image
   --dataset          (default moving_mnist)      dataset
   --movingDigits     (default 1)
@@ -32,6 +32,7 @@ opt = lapp[[
 ]]  
 
 optSetup()
+local log = getLog()
 local nc = opt.geometry[1] 
 
 require(('models/dcgan_%s'):format(opt.imageSize))
@@ -62,8 +63,8 @@ local currentBatch = nil
 
 
 local timer = tnt.TimeMeter({unit=true})
-local gErrorMeter = tnt.MovingAverageValueMeter({windowsize=1})
-local dErrorMeter = tnt.MovingAverageValueMeter({windowsize=1})
+local gErrorMeter = tnt.MovingAverageValueMeter({windowsize=opt.printEvery})
+local dErrorMeter = tnt.MovingAverageValueMeter({windowsize=opt.printEvery})
 
 
 optimStateD = {learningRate = opt.lrD, beta1=opt.beta1, weightDecay=opt.weightDecay}
@@ -135,9 +136,12 @@ for epoch=1,opt.nEpochs do
 
       timer:incUnit()
       if (numBatches%opt.printEvery) == 0 then
-	 print(('%d/%d samples %f secs/batch G-Err-Prob=%f D-Err-Prob=%f'):
+	 print(('%d/%d samples %f secs/batch G-Error=%f D-Error=%f'):
 	       format(samples, trainSize, timer:value(), gErrorMeter:value(),
 		      dErrorMeter:value()))
+	 log:set({errG=gErrorMeter:value(), errD=dErrorMeter:value()})
+	 gErrorMeter:reset()
+	 dErrorMeter:reset()
       end
       if (numBatches%opt.dispEvery) == 0 then
 	 sampleNoise(noise, opt.seed)

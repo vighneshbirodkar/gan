@@ -1,4 +1,8 @@
 require 'torch'
+require 'paths'
+tnt = require 'torchnet'
+logtext = require 'torchnet.log.view.text'
+logstatus = require 'torchnet.log.view.status'
 
 
 function sampleNoise(z, seed)
@@ -37,9 +41,10 @@ end
 
 function optSetup()
    
-   opt.save = 'logs/' .. opt.name 
-   os.execute('mkdir -p ' .. opt.save .. '/gen/')
-
+   opt.save = 'logs/' .. opt.name
+   paths.mkdir(opt.save)
+   paths.mkdir(opt.save .. '/gen/')
+   
    if opt.optimizer == "adam" then
       opt.optimizer = optim.adam
    elseif opt.optimizer == "sgd" then
@@ -63,3 +68,15 @@ function optSetup()
       opt.output = 'tanh'
    end
 end
+
+
+function getLog()
+   local log = tnt.Log{
+      keys = {"errD", "errG"},
+      onSet = {
+	 logtext({filename=(opt.save .. '/log.txt'), keys={'errD', 'errG'}})
+      }
+   }
+   return log
+end
+
